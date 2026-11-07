@@ -1,0 +1,33 @@
+# 便携工具链
+.tools/
+
+# AI 助手工作目录（项目级配置与辅助脚本，不随仓库分发）
+.workbuddy/
+
+# 后端
+backend/target/
+backend/data/
+*.log
+
+# 前端
+**/node_modules/
+**/dist/
+# 本地密钥（腾讯位置服务 key 等），不要提交
+.env.local
+**/.env.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 打包/交付临时物
+backup-*/
+frontend/dist-*
+DB/_trash_*/
+*.zip
+_perm_test.py
+_cdp_tab.mjs
+_trash_build_*/
+# 打包交付说明为一次性文档，如不需要版本管理可放开
+# 打包说明.md

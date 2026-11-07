@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>学旅圈 · 城市景点总人流量分布（极坐标变种图）</title>
+<style>
+  :root {
+    --bg: #f7f4ee;
+    --ink: #2b2b2b;
+    --red: #c0392b;
+    --line: #e4ddd0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    min-width: 1500px;
+    padding: 24px 36px 30px;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(192,57,43,.04), transparent 40%),
+      radial-gradient(circle at 90% 90%, rgba(28,63,148,.05), transparent 45%);
+  }
+
+  /* ===== 顶部标题区（仿人民日报新媒体数据图版式） ===== */
+  header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 3px solid #d8452b; padding-bottom: 14px; margin-bottom: 6px;
+  }
+  .title-block h1 { font-size: 34px; letter-spacing: 2px; color: #1f1f1f; }
+  .title-block h1 em { font-style: normal; color: #d8452b; }
+  .title-block .sub { margin-top: 8px; font-size: 14px; color: #8a8378; letter-spacing: 1px; }
+  .stat-row { display: flex; gap: 12px; }
+  .stat-box {
+    background: #fffdf8; border: 2px solid #d8452b; border-radius: 4px;
+    padding: 8px 18px; text-align: center; min-width: 150px;
+    box-shadow: 0 2px 0 rgba(216,69,43,.15);
+  }
+  .stat-box .k { font-size: 13px; color: #9a5147; letter-spacing: 1px; }
+  .stat-box .v { font-size: 24px; font-weight: 800; color: #c0392b; margin-top: 2px; }
+  .stat-box .v small { font-size: 13px; font-weight: 600; }
+  .stat-box.blue { border-color: #2c5aa0; box-shadow: 0 2px 0 rgba(44,90,160,.15); }
+  .stat-box.blue .k { color: #4a6ea3; }
+  .stat-box.blue .v { color: #2c5aa0; }
+
+  .legend-note {
+    font-size: 13px; color: #97907f; margin: 10px 2px 0; letter-spacing: .5px;
+  }
+  .legend-note b { color: #c0392b; }
+  .legend-note i { color: #2c5aa0; font-style: normal; }
+
+  /* ===== 主体：左图右表 ===== */
+  .stage { position: relative; width: 100%; }
+  svg#chart { display: block; }
+
+  /* 右上角城市数据表 */
+  .city-table-panel {
+    position: absolute; top: 18px; right: 6px; width: 405px;
+    background: rgba(255, 253, 248, .96);
+    border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(60, 40, 20, .08);
+    overflow: hidden;
+  }
+  .city-table-panel .panel-head {
+    background: linear-gradient(90deg, #d8452b, #e8703f);
+    color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 2px;
+    padding: 9px 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .city-table-panel .panel-head span:last-child { font-size: 12px; font-weight: 400; opacity: .9; }
+  .city-table-scroll { max-height: 508px; overflow-y: auto; }
+  .city-table-scroll::-webkit-scrollbar { width: 6px; }
+  .city-table-scroll::-webkit-scrollbar-thumb { background: #d8cfc0; border-radius: 3px; }
+  table.city-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.city-table th {
+    position: sticky; top: 0; background: #faf6ec; color: #9a917f;
+    font-weight: 600; font-size: 12px; letter-spacing: 1px;
+    padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line);
+  }
+  table.city-table th:last-child, table.city-table td:last-child { text-align: right; }
+  table.city-table td { padding: 6px 10px; border-bottom: 1px dashed #efe9dc; }
+  table.city-table tr { cursor: default; transition: background .12s; }
+  table.city-table tr:hover, table.city-table tr.hl { background: #fdf0e7; }
+  .rank { display: inline-block; width: 24px; font-weight: 800; color: #b7ad9b; font-size: 12px; }
+  .chip {
+    display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+    margin-right: 8px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.12);
+  }
+  .bar-wrap { display: inline-block; width: 60px; height: 6px; background: #f0ead9; border-radius: 3px; margin-left: 10px; vertical-align: 2px; overflow: hidden; }
+  .bar { height: 100%; border-radius: 3px; }
+  td.val { font-weight: 700; color: #4a4436; font-variant-numeric: tabular-nums; }
+
+  /* 悬浮提示 */
+  #tip {
+    position: fixed; pointer-events: none; z-index: 50; display: none;
+    background: rgba(35, 30, 25, .92); color: #fff; border-radius: 6px;
+    padding: 10px 14px; font-size: 13px; line-height: 1.7; box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  }
+  #tip .t-city { font-size: 15px; font-weight: 700; }
+  #tip .t-red { color: #ffb199; font-weight: 700; }
+
+  footer {
+    margin-top: 4px; padding: 10px 4px 0; font-size: 12.5px; color: #a39a88;
+    border-top: 1px solid var(--line); display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <h1>学旅圈 · 城市景点总人流量分布 <em>（极坐标变种图）</em></h1>
+    <div class="sub">函数解析图 · 等圆心角扇区 · 自 12 点钟方向起<b>逆时针</b>按人流量降序排布 · 受众：导游（拥挤度与带队时段决策）</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box"><div class="k">覆盖城市</div><div class="v">24 <small>个</small></div></div>
+    <div class="stat-box blue"><div class="k">月度总人流量</div><div class="v" id="stat-total">— <small>万人次</small></div></div>
+    <div class="stat-box"><div class="k">最热城市</div><div class="v" id="stat-top">—</div></div>
+  </div>
+</header>
+
+<div class="legend-note">
+  颜色规则：人流量由最高（<b>深红</b>）逐级渐变至最低（<i>深蓝</i>）；左半圆扇区面积大，城市与数值以<b>白色标注在扇形内部</b>；右半圆扇区面积小，信息以<b>黑色标注在扇形外部</b>。右上角表格汇总全部城市对应数据。
+</div>
+
+<div class="stage">
+  <svg id="chart" width="1500" height="1120" viewBox="0 0 1500 1120"></svg>
+
+  <div class="city-table-panel">
+    <div class="panel-head"><span>城市人流量排行总表</span><span>单位：万人次 / 月</span></div>
+    <div class="city-table-scroll">
+      <table class="city-table">
+        <thead>
+          <tr><th>排名</th><th>城市</th><th>人流量</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<footer>
+  <span>数据来源：学旅圈平台聚合演示数据（各聚合单元样本量 ≥ 30，符合最小样本合规门槛，不含任何可识别个人的字段）</span>
+  <span>学旅圈数据可视化 · 测试版 traveling-test · 2026-10</span>
+</footer>
+
+<script>
+/* ================= 数据：24 个城市景点总人流量（万人次/月，演示数据，已排序） ================= */
+const DATA = [
+  { city: "北京",   flow: 1286 },
+  { city: "上海",   flow: 1153 },
+  { city: "成都",   flow: 1042 },
+  { city: "广州",   flow: 976  },
+  { city: "杭州",   flow: 918  },
+  { city: "西安",   flow: 874  },
+  { city: "重庆",   flow: 831  },
+  { city: "南京",   flow: 768  },
+  { city: "武汉",   flow: 735  },
+  { city: "长沙",   flow: 692  },
+  { city: "厦门",   flow: 651  },
+  { city: "青岛",   flow: 610  },
+  { city: "昆明",   flow: 572  },
+  { city: "三亚",   flow: 538  },
+  { city: "苏州",   flow: 497  },
+  { city: "桂林",   flow: 455  },
+  { city: "大理",   flow: 418  },
+  { city: "哈尔滨", flow: 379  },
+  { city: "洛阳",   flow: 341  },
+  { city: "银川",   flow: 305  },
+  { city: "拉萨",   flow: 268  },
+  { city: "西宁",   flow: 231  },
+  { city: "呼和浩特", flow: 197 },
+  { city: "丽江",   flow: 164  },
+].sort((a, b) => b.flow - a.flow);
+
+/* ================= 几何参数 ================= */
+const CX = 560, CY = 600;          // 极点
+const R0 = 58;                     // 内孔半径
+const RMAX = 460;                  // 最大扇形半径
+const N = DATA.length;
+const ANG = 360 / N;               // 所有扇形圆心角一致 = 15°
+const VMAX = DATA[0].flow;
+
+/* 半径映射：幂函数缩放，保证小值扇形仍可读 */
+const scaleR = v => R0 + (RMAX - R0) * Math.pow(v / VMAX, 0.55);
+
+/* 颜色：深红 → 橙 → 黄 → 绿 → 青 → 深蓝（对应人流量 高 → 低） */
+const STOPS = [
+  [0.00, 0x7a, 0x0c, 0x1e],
+  [0.13, 0xb4, 0x1f, 0x2e],
+  [0.27, 0xe0, 0x49, 0x2f],
+  [0.42, 0xf0, 0x8c, 0x2e],
+  [0.56, 0xf2, 0xc4, 0x37],
+  [0.70, 0xa9, 0xc2, 0x3f],
+  [0.82, 0x4b, 0xa5, 0x86],
+  [0.92, 0x2f, 0x7f, 0xb8],
+  [1.00, 0x1c, 0x3f, 0x94],
+];
+function colorAt(t) {
+  t = Math.min(1, Math.max(0, t));
+  for (let i = 1; i < STOPS.length; i++) {
+    if (t <= STOPS[i][0]) {
+      const [t0, r0, g0, b0] = STOPS[i - 1], [t1, r1, g1, b1] = STOPS[i];
+      const k = (t - t0) / (t1 - t0);
+      const c = (a, b) => Math.round(a + (b - a) * k);
+      return `rgb(${c(r0, r1)},${c(g0, g1)},${c(b0, b1)})`;
+    }
+  }
+  return "rgb(28,63,148)";
+}
+
+/* 极坐标转换：deg 为数学角度（12 点钟 = 90°），屏幕 y 向下取负 */
+const pt = (r, deg) => {
+  const a = deg * Math.PI / 180;
+  return [CX + r * Math.cos(a), CY - r * Math.sin(a)];
+};
+/* 等圆心角环形扇区路径（a1 → a2 屏幕上逆时针） */
+function sectorPath(rOut, a1, a2) {
+  const [x1, y1] = pt(rOut, a1), [x2, y2] = pt(rOut, a2);
+  const [x3, y3] = pt(R0, a2),  [x4, y4] = pt(R0, a1);
+  return `M${x1} ${y1} A${rOut} ${rOut} 0 0 0 ${x2} ${y2} L${x3} ${y3} A${R0} ${R0} 0 0 1 ${x4} ${y4} Z`;
+}
+const fmt = n => n.toLocaleString("en-US");
+
+/* ================= 绘制 ================= */
+const svg = document.getElementById("chart");
+const NS = "http://www.w3.org/2000/svg";
+const tip = document.getElementById("tip");
+const tbody = document.getElementById("tbody");
+document.getElementById("stat-total").innerHTML = `${fmt(DATA.reduce((s, d) => s + d.flow, 0))} <small>万人次</small>`;
+document.getElementById("stat-top").textContent = `${DATA[0].city} · ${fmt(DATA[0].flow)}万`;
+
+const sectors = [];
+
+DATA.forEach((d, i) => {
+  const a1 = 90 + i * ANG;                 // 12 点钟起逆时针
+  const a2 = a1 + ANG;
+  const mid = ((a1 + a2) / 2) % 360;
+  const r = scaleR(d.flow);
+  const t = i / (N - 1);
+  const color = colorAt(t);
+  const isLeft = mid > 90 && mid < 270;    // 左半圆：白色内标；右半圆：黑色外标
+
+  const g = document.createElementNS(NS, "g");
+  const path = document.createElementNS(NS, "path");
+  path.setAttribute("d", sectorPath(r, a1, a2));
+  path.setAttribute("fill", color);
+  path.setAttribute("stroke", "#f7f4ee");
+  path.setAttribute("stroke-width", "1.2");
+  g.appendChild(path);
+
+  const mkText = (attrs, lines) => {
+    const text = document.createElementNS(NS, "text");
+    Object.entries(attrs).forEach(([k, v]) => text.setAttribute(k, v));
+    lines.forEach(([str, dy, fs, fw, fill]) => {
+      const ts = document.createElementNS(NS, "tspan");
+      ts.setAttribute("x", attrs.x);
+      if (dy != null) ts.setAttribute("dy", dy);
+      ts.setAttribute("font-size", fs);
+      ts.setAttribute("font-weight", fw);
+      ts.setAttribute("fill", fill);
+      ts.textContent = str;
+      text.appendChild(ts);
+    });
+    return text;
+  };
+
+  if (isLeft) {
+    /* ---- 左半圆：白色文字画在扇形内部 ---- */
+    if (r >= 345) {
+      /* 大扇区：水平双行（城市名 + 数值），仿"意大利 10283例"样式 */
+      const [x, y] = pt(r - 62, mid);
+      g.appendChild(mkText({ x, y, "text-anchor": "middle", "pointer-events": "none" }, [
+        [d.city, -2, 30, 800, "#ffffff"],
+        [`${fmt(d.flow)} 万人`, 30, 19, 600, "rgba(255,255,255,.92)"],
+      ]));
+    } else {
+      /* 中小扇区：沿半径方向旋转的白字，仿参考图左侧小扇区（锚点在近外缘处，文字向圆心方向延伸） */
+      const [x, y] = pt(r - 14, mid);
+      const rot = 180 - mid;               // 保持文字可读方向
+      g.appendChild(mkText({
+        x, y, "text-anchor": "start", "pointer-events": "none",
+        transform: `rotate(${rot} ${x} ${y})`,
+      }, [
+        [`${d.city} ${fmt(d.flow)}万人`, 0, r > 250 ? 15 : 13, 700, "#ffffff"],
+      ]));
+    }
+  } else {
+    /* ---- 右半圆：黑色文字画在扇形外部（沿半径向外） ---- */
+    const [x, y] = pt(r + 12, mid);
+    const rot = -mid;
+    const fs = r > 220 ? 15 : 13.5;
+    g.appendChild(mkText({
+      x, y, "text-anchor": "start", "pointer-events": "none",
+      transform: `rotate(${rot} ${x} ${y})`,
+    }, [
+      [`${d.city}`, 0, fs + 1.5, 800, "#2b2b2b"],
+      [`${fmt(d.flow)}万人`, 17, fs - 1, 500, "#5a5348"],
+    ]));
+  }
+
+  /* 交互 */
+  path.addEventListener("mousemove", ev => {
+    path.setAttribute("fill", shade(color, 1.12));
+    const row = tbody.children[i];
+    tbody.querySelectorAll("tr").forEach(tr => tr.classList.remove("hl"));
+    row.classList.add("hl");
+    row.scrollIntoView({ block: "nearest" });
+    tip.style.display = "block";
+    tip.style.left = ev.clientX + 16 + "px";
+    tip.style.top = ev.clientY + 14 + "px";
+    tip.innerHTML = `<div class="t-city">No.${i + 1} ${d.city}</div>
+      <div>景点总人流量：<span class="t-red">${fmt(d.flow)} 万人次/月</span></div>
+      <div>占比 ${(d.flow / DATA.reduce((s, x) => s + x.flow, 0) * 100).toFixed(1)}% · 圆心角 ${ANG}°</div>`;
+  });
+  path.addEventListener("mouseleave", () => {
+    path.setAttribute("fill", color);
+    tbody.querySelectorAll("tr").forEach(tr => tr.classList.remove("hl"));
+    tip.style.display = "none";
+  });
+
+  svg.appendChild(g);
+  sectors.push({ d, color });
+});
+
+/* 颜色提亮工具 */
+function shade(rgb, k) {
+  const m = rgb.match(/\d+/g).map(Number);
+  return `rgb(${m.map(v => Math.min(255, Math.round(v * k))).join(",")})`;
+}
+
+/* ================= 右上角表格 ================= */
+const maxFlow = DATA[0].flow;
+DATA.forEach((d, i) => {
+  const tr = document.createElement("tr");
+  const c = colorAt(i / (N - 1));
+  tr.innerHTML = `
+    <td><span class="rank">${String(i + 1).padStart(2, "0")}</span><span class="chip" style="background:${c}"></span>${d.city}</td>
+    <td class="val">${fmt(d.flow)}<span class="bar-wrap"><span class="bar" style="width:${(d.flow / maxFlow * 100).toFixed(1)}%;background:${c}"></span></span></td>`;
+  tr.addEventListener("mouseenter", () => {
+    const idx = i;
+    svg.querySelectorAll("path")[idx].setAttribute("fill", shade(sectors[idx].color, 1.12));
+  });
+  tr.addEventListener("mouseleave", () => {
+    const idx = i;
+    svg.querySelectorAll("path")[idx].setAttribute("fill", sectors[idx].color);
+  });
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>

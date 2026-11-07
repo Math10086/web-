@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.xuelvquan</groupId>
+    <artifactId>travel-backend</artifactId>
+    <version>1.0.0</version>
+    <name>xuelvquan-travel-backend</name>
+    <description>学旅圈 - 高校学生旅游社区与结伴出行平台</description>
+
+    <properties>
+        <!-- 钉死 JDK 21：系统默认 JDK 升到 25 后 Lombok 曾失效，统一锁定 21 -->
+        <java.version>21</java.version>
+        <jjwt.version>0.12.6</jjwt.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!-- Hibernate 社区方言：MySQLLegacyDialect 兼容 MySQL 5.x（datetime 不带精度） -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-community-dialects</artifactId>
+            <version>6.5.3.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- MySQL 5.1 必须用 5.1.49 老驱动（新驱动 mysql-connector-j 9.x 连 5.1 会报缺 transaction_isolation） -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.49</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- 仅使用 BCryptPasswordEncoder，不引入 spring-security starter -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- JWT -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- 钉死编译目标为 JDK 21：用低于 21 的 JDK 编译会直接报错，
+                         避免不同机器用不同 JDK 产生行为差异 -->
+                    <release>21</release>
+                    <!-- JDK 23+ 默认关闭注解处理（Lombok 会全部失效），
+                         显式打开以兼容新 JDK；旧 JDK 上该参数同样合法 -->
+                    <compilerArgs>
+                        <arg>-proc:full</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- ============================================================
+         本机（macOS / MySQL 9.x）开发档案：mvn ... -Dmysql9 激活。
+         默认（不加该参数）保持 5.1.49 老驱动不变，课程机房环境不受影响；
+         激活后追加 mysql-connector-j 8.x（Spring Boot 管理版本），
+         配合 application-mac.yml 使用（Spring 档案 mac）。
+         ============================================================ -->
+    <profiles>
+        <profile>
+            <id>mysql9</id>
+            <activation>
+                <property>
+                    <name>mysql9</name>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.mysql</groupId>
+                    <artifactId>mysql-connector-j</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>
